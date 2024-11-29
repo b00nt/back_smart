@@ -1,0 +1,10 @@
+# back/configs/config.yaml
+
+# for db
+database:
+  host: "localhost"
+  user: "youruser"
+  password: "yourpassword"
+  name: "yourdb"
+  port: 5432
+  sslmode: "disable"
