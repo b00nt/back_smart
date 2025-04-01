@@ -23,65 +23,67 @@ func NewCronService() *CronService {
 }
 
 // Start initializes the cron job and starts it
-func (cs *CronService) Start(db *gorm.DB) {
+func (cs *CronService) Start(city string, db *gorm.DB) {
 	// Run the task immediately once at the start
-	resultProducts := moysklad.GetProducts()
-	err := moysklad.SaveProducts(resultProducts, db)
+	resultProducts := moysklad.GetProducts(city)
+	err := moysklad.SaveProducts(city, resultProducts, db)
 	if err != nil {
 		log.Println("Error updating product:", err)
 	} else {
 		fmt.Println("Product update successful")
 	}
 
-	resultVariants := moysklad.GetModifications()
-	err = moysklad.SaveModifications(resultVariants, db)
+	resultVariants := moysklad.GetModifications(city, db)
+	err = moysklad.SaveModifications(city, resultVariants, db)
 	if err != nil {
 		log.Println("Error updating modifications:", err)
 	} else {
 		fmt.Println("Modifications update successful")
 	}
 
-	resultStock := moysklad.GetStock()
-	err = moysklad.SaveStock(resultStock, db)
+	resultStock := moysklad.GetStock(city)
+	err = moysklad.SaveStock(city, resultStock, db)
 	if err != nil {
-		log.Println("Error updating modifications:", err)
+		log.Println("Error updating stock:", err)
 	} else {
-		fmt.Println("Modifications update successful")
+		fmt.Println("Stock update successful")
 	}
 
-	moysklad.GetSaveDownloadProductImages(db)
-	moysklad.GetSaveDownloadModImages(db)
+	// Download and save images for products and modifications
+	moysklad.GetSaveDownloadProductImages(city, db)
+	moysklad.GetSaveDownloadModImages(city, db)
 
 	// Schedule the update job to run every day at midnight (or any desired schedule)
 	_, err = cs.cronScheduler.AddFunc("@every 24h", func() {
 		fmt.Println("Starting daily update job")
 
-		resultProducts := moysklad.GetProducts()
-		err := moysklad.SaveProducts(resultProducts, db)
+		resultProducts := moysklad.GetProducts(city)
+		err := moysklad.SaveProducts(city, resultProducts, db)
 		if err != nil {
 			log.Println("Error updating product:", err)
 		} else {
 			fmt.Println("Product update successful")
 		}
 
-		resultVariants := moysklad.GetModifications()
-		err = moysklad.SaveModifications(resultVariants, db)
+		resultVariants := moysklad.GetModifications(city, db)
+		err = moysklad.SaveModifications(city, resultVariants, db)
 		if err != nil {
 			log.Println("Error updating modifications:", err)
 		} else {
 			fmt.Println("Modifications update successful")
 		}
 
-		resultStock := moysklad.GetStock()
-		err = moysklad.SaveStock(resultStock, db)
+		resultStock := moysklad.GetStock(city)
+		err = moysklad.SaveStock(city, resultStock, db)
 		if err != nil {
 			log.Println("Error updating modifications:", err)
 		} else {
 			fmt.Println("Modifications update successful")
 		}
 
-		moysklad.GetSaveDownloadProductImages(db)
-		moysklad.GetSaveDownloadModImages(db)
+		// Download and save images for products and modifications
+		moysklad.GetSaveDownloadProductImages(city, db)
+		moysklad.GetSaveDownloadModImages(city, db)
 	})
 
 	if err != nil {

@@ -14,9 +14,4 @@ func InitializeRoutes(e *echo.Echo, db *gorm.DB) {
 			return next(c)
 		}
 	})
-
-	// Initialize each route group
-	//	InitFeedbackRoutes(e)
-	//	InitProductsRoutes(e)
-	// InitModificationRoutes(e)
 }

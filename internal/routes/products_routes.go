@@ -13,4 +13,5 @@ func InitProductsRoutes(e *echo.Echo, h *handlers.Handler) {
 	// Products routes
 	productsGroup.GET("/:categoryID", h.GetProductsByCategory)
 	productsGroup.GET("", h.GetProducts)
+	productsGroup.GET("/product/:moysklad_id", h.GetProductByID)
 }

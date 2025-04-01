@@ -21,6 +21,7 @@ func NewHandler(db *gorm.DB) *Handler {
 
 func (h *Handler) GetProductsByCategory(c echo.Context) error {
 	var products []models.Products
+	var productsSaratov []models.ProductsSaratov
 	var query *gorm.DB
 	city := c.QueryParam("city")
 	// Get the category ID from the request URL
@@ -30,19 +31,20 @@ func (h *Handler) GetProductsByCategory(c echo.Context) error {
 
 	if city == "saratov" {
 		query = h.DB.Table("products_saratovs")
-		if err := query.Preload("CategorySaratov").
-			Preload("ProductImagesSaratov").
-			Preload("ModificationSaratov").
-			Preload("Modification.ModificationCharacteristicsSaratov").
-			Preload("Modification.ModificationImagesSaratov").
+		if err := query.Preload("Category").
+			Preload("ProductImages").
+			Preload("Modification").
+			Preload("Modification.ModificationCharacteristics").
+			Preload("Modification.ModificationImages").
+			Where("price > ?", 0).
 			Where("category_id = ?", categoryID).
-			Find(&products).Error; err != nil {
+			Find(&productsSaratov).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error": "Failed to fetch products",
 			})
 		} else {
 			// Send back the products as JSON
-			return c.JSON(http.StatusOK, products)
+			return c.JSON(http.StatusOK, productsSaratov)
 		}
 	} else {
 		query = h.DB.Table("products")
@@ -51,6 +53,7 @@ func (h *Handler) GetProductsByCategory(c echo.Context) error {
 			Preload("Modification").
 			Preload("Modification.ModificationCharacteristics").
 			Preload("Modification.ModificationImages").
+			Where("price > ?", 0).
 			Where("category_id = ?", categoryID).
 			Find(&products).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -72,13 +75,14 @@ func (h *Handler) GetProducts(c echo.Context) error {
 	fmt.Println("Search Term:", searchTerm)
 
 	var query *gorm.DB
+
 	if city == "saratov" {
 		query = h.DB.Table("products_saratovs").
-			Preload("CategorySaratov").
-			Preload("ProductImagesSaratov").
-			Preload("ModificationSaratov").
-			Preload("Modification.ModificationCharacteristicsSaratov").
-			Preload("Modification.ModificationImagesSaratov")
+			Preload("Category").
+			Preload("ProductImages").
+			Preload("Modification").
+			Preload("Modification.ModificationCharacteristics").
+			Preload("Modification.ModificationImages")
 	} else {
 		query = h.DB.Table("products").
 			Preload("Category").
@@ -105,8 +109,11 @@ func (h *Handler) GetProducts(c echo.Context) error {
 		fmt.Println("Final Query:", query)
 	}
 
+	//
+	query = query.Where("price > ?", 0)
+
 	// Ensure no default limit is applied
-	query = query.Limit(1000)
+	query = query.Limit(5000)
 
 	// Execute the query and fetch the products
 	result := query.Find(&products)
@@ -121,3 +128,109 @@ func (h *Handler) GetProducts(c echo.Context) error {
 	fmt.Println("Filtered products count:", len(products))
 	return c.JSON(http.StatusOK, products)
 }
+
+func (h *Handler) GetProductByID(c echo.Context) error {
+	var products []models.Products
+	var productsSaratov []models.ProductsSaratov
+	var query *gorm.DB
+
+	productID := c.Param("moysklad_id")
+	city := c.QueryParam("city")
+
+	if productID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Missing product ID",
+		})
+	}
+
+	//	fmt.Println("City:", city, "\nProduct ID:", productID)
+
+	if city == "saratov" {
+		query = h.DB.Table("products_saratovs")
+		if err := query.Preload("Category").
+			Preload("ProductImages").
+			Preload("Modification").
+			Preload("Modification.ModificationCharacteristics").
+			Preload("Modification.ModificationImages").
+			Where("price > ?", 0).
+			Where("moysklad_id = ?", productID).
+			Find(&productsSaratov).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to fetch products",
+			})
+		}
+		if len(productsSaratov) == 0 {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "Product not found in Saratov",
+			})
+		}
+		return c.JSON(http.StatusOK, productsSaratov)
+	}
+
+	query = h.DB.Table("products")
+	if err := query.Preload("Category").
+		Preload("ProductImages").
+		Preload("Modification").
+		Preload("Modification.ModificationCharacteristics").
+		Preload("Modification.ModificationImages").
+		Where("price > ?", 0).
+		Where("moysklad_id = ?", productID).
+		Find(&products).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to fetch products",
+		})
+	}
+	if len(products) == 0 {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "Product not found",
+		})
+	}
+	return c.JSON(http.StatusOK, products)
+}
+
+// func (h *Handler) GetProductByID(c echo.Context) error {
+// 	var products []models.Products
+// 	var productsSaratov []models.ProductsSaratov
+// 	var query *gorm.DB
+// 	// Extract the product ID from the request parameters
+// 	productID := c.Param("moysklad_id")
+// 	city := c.QueryParam("city") // Optional: to determine which table to query
+//
+// 	// fmt.Println("City:", city)
+//
+// 	if city == "saratov" {
+// 		query = h.DB.Table("products_saratovs")
+// 		if err := query.Preload("Category").
+// 			Preload("ProductImages").
+// 			Preload("Modification").
+// 			Preload("Modification.ModificationCharacteristics").
+// 			Preload("Modification.ModificationImages").
+// 			Where("price > ?", 0).
+// 			Where("moysklad_id = ?", productID).
+// 			Find(&productsSaratov).Error; err != nil {
+// 			return c.JSON(http.StatusInternalServerError, map[string]string{
+// 				"error": "Failed to fetch products",
+// 			})
+// 		} else {
+// 			// Send back the products as JSON
+// 			return c.JSON(http.StatusOK, productsSaratov)
+// 		}
+// 	} else {
+// 		query = h.DB.Table("products")
+// 		if err := query.Preload("Category").
+// 			Preload("ProductImages").
+// 			Preload("Modification").
+// 			Preload("Modification.ModificationCharacteristics").
+// 			Preload("Modification.ModificationImages").
+// 			Where("price > ?", 0).
+// 			Where("moysklad_id = ?", productID).
+// 			Find(&products).Error; err != nil {
+// 			return c.JSON(http.StatusInternalServerError, map[string]string{
+// 				"error": "Failed to fetch products",
+// 			})
+// 		} else {
+// 			// Send back the products as JSON
+// 			return c.JSON(http.StatusOK, products)
+// 		}
+// 	}
+// }

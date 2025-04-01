@@ -4,8 +4,9 @@ import (
 	"back/internal/database"
 	"back/internal/handlers"
 	"back/internal/models"
+	// "back/internal/moysklad"
 	"back/internal/routes"
-	//"back/internal/services"
+	"back/internal/services"
 	"context"
 	"fmt"
 	"github.com/labstack/echo/v4"
@@ -15,6 +16,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	// "log"
 )
 
 func main() {
@@ -40,15 +42,73 @@ func main() {
 		os.Exit(1)
 	}
 
-	db.AutoMigrate(&models.Category{}, &models.Products{}, &models.Modification{}, &models.ModificationImages{}, &models.ProductImages{}, &models.ModificationCharacteristics{})
-	db.AutoMigrate(&models.ProductsSaratov{}, &models.ModificationImagesSaratov{}, &models.ProductImagesSaratov{}, &models.ModificationSaratov{}, &models.CategorySaratov{}, &models.ModificationCharacteristicsSaratov{})
-	db.AutoMigrate(&models.Feedback{}, &models.CustomerInfo{}, &models.Order{}, &models.OrderItem{})
+	db.AutoMigrate(&models.Category{})
+	db.AutoMigrate(&models.Products{}, &models.Modification{}, &models.ModificationImages{}, &models.ProductImages{}, &models.ModificationCharacteristics{})
+	db.AutoMigrate(&models.ProductsSaratov{}, &models.ModificationSaratov{}, &models.ModificationImagesSaratov{}, &models.ProductImagesSaratov{}, &models.ModificationCharacteristicsSaratov{})
+	db.AutoMigrate(&models.Feedback{}, &models.OrderItem{}, &models.CustomerInfo{}, &models.Order{}, &models.ModificationCharacteristicsOrder{})
 
 	// Initialize the CronService
-	// cronService := services.NewCronService()
+	cronService := services.NewCronService()
+	fmt.Println(cronService)
 
 	// Start the cron job
-	// cronService.Start(db)
+	// cronService.Start("saratov", db)
+	// cronService.Start("moscow", db)
+
+	// get & save products 
+	// resultSaratovProduct := moysklad.GetProducts("saratov")
+	// err = moysklad.SaveProducts("saratov", resultSaratovProduct, db)
+	// if err != nil {
+	// 	log.Errorf("Error updating product:", err)
+	// } else {
+	// 	fmt.Println("Product update successful")
+	// }
+	//
+	// resultMoscowProduct := moysklad.GetProducts("moscow")
+	// err = moysklad.SaveProducts("moscow", resultMoscowProduct, db)
+	// if errMoscowProduct != nil {
+	// 	log.Errorf("Error updating product:", err)
+	// } else {
+	// 	fmt.Println("Product update successful")
+	// }
+
+	// get & save modifications
+	// resultSaratovMod := moysklad.GetModifications("saratov", db)
+	// err = moysklad.SaveModifications("saratov", resultSaratovMod, db)
+	// if err != nil {
+	// 	log.Errorf("Error updating modification:", err)
+	// } else {
+	// 	fmt.Println("Modification update successful")
+	// }
+	//
+	// resultMoscowMod := moysklad.GetModifications("moscow", db)
+	// err = moysklad.SaveModifications("moscow", resultMoscowMod, db)
+	// if err != nil {
+	// 	log.Errorf("Error updating modification:", err)
+	// } else {
+	// 	fmt.Println("Modification update successful")
+	// }
+
+	// get & save stock
+	// resultSaratovStock := moysklad.GetStock("saratov")
+	// errSaratovStock := moysklad.SaveStock("saratov", resultSaratovStock, db)
+	// if errSaratovStock != nil {
+	// 	log.Println("Error updating stock:", err)
+	// } else {
+	// 	fmt.Println("Stock update successful")
+	// }
+	//
+	// resultMoscowStock := moysklad.GetStock("moscow")
+	// errMoscowStock := moysklad.SaveStock("moscow", resultMoscowStock, db)
+	// if errMoscowStock != nil {
+	// 	log.Println("Error updating stock:", err)
+	// } else {
+	// 	fmt.Println("Stock update successful")
+	// }
+
+	// moysklad.GetSaveDownloadProductImages("saratov", db)
+	// moysklad.GetSaveDownloadModImages("saratov", db)
+
 
 	// Initialize handler with DB instance
 	handler := handlers.NewHandler(db)
