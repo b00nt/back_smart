@@ -5,6 +5,65 @@ import (
 	"time"
 )
 
+// TODO:
+// add json tags
+
+type Category struct {
+	gorm.Model
+	Name string `gorm:"type:varchar(32)"`
+}
+
+type Product struct {
+	gorm.Model
+	MoyskladID    string          `gorm:"type:varchar(128);unique;index"`
+	Code          string          `gorm:"type:varchar(9)"`
+	Name          string          `gorm:"type:varchar(128);not null"`
+	CategoryID    uint            `gorm:"not null"`
+	Category      Category        `gorm:"foreignKey:CategoryID;constraint:OnDelete:CASCADE;"`
+	Modification  []Modification  `gorm:"foreignKey:MoyskladID;references:MoyskladID;constraint:OnDelete:CASCADE;"`
+	Price         float64         `gorm:"default:0.0"`
+	Discount      float64         `gorm:"default:0.0;check:Discount >= 0 AND Discount <= 1"`
+	Popular       uint64          `gorm:"default:0"`
+	Stock         int             `gorm:"default:0"`
+	ProductImages []ProductImage 	`gorm:"foreignKey:MoyskladID;references:MoyskladID;constraint:OnDelete:CASCADE;"`
+	Display       bool            `gorm:"default:true"`
+	City        	string 					`json:"city" gorm:"uniqueIndex:idx_moysklad_city"`
+}
+
+type ModificationImage struct {
+	gorm.Model
+	ImgID    string `gorm:"unique"`
+	ModID    string `gorm:"type:varchar(191)"`
+	ImageURL string `gorm:"type:varchar(255);not null"`
+}
+
+type ModificationCharacteristic struct {
+	gorm.Model
+	ModID string `gorm:"type:varchar(191)"`
+	Name  string `gorm:"type:varchar(128);not null"`
+	Value string `gorm:"type:varchar(128);not null"`
+}
+
+type Modification struct {
+	gorm.Model
+	Name                        string                        `gorm:"type:varchar(128);not null"`
+	ModID                       string                        `gorm:"type:varchar(191);unique"`
+	MoyskladID                  string                        `gorm:"type:varchar(128);not null"`
+	Code                        string                        `gorm:"type:varchar(9)"`
+	Stock                       int                           `gorm:"default:0"`
+	ModificationCharacteristic []ModificationCharacteristic `gorm:"foreignKey:ModID;references:ModID;constraint:OnDelete:CASCADE;"`
+	ModificationImage          []ModificationImage          `gorm:"foreignKey:ModID;references:ModID;constraint:OnDelete:CASCADE;"`
+	SalePrices                  float64                       `gorm:"default:0.0"`
+	Display                     bool                          `gorm:"default:true"`
+}
+
+type ProductImage struct {
+	gorm.Model
+	ImgID      string `gorm:"unique"`
+	MoyskladID string `gorm:"type:varchar(128);not null"`
+	ImageURL   string `gorm:"type:varchar(255)"`
+}
+
 type Feedback struct {
 	gorm.Model
 	Name      string `gorm:"size:64;not null"`
@@ -46,35 +105,16 @@ type OrderItem struct {
 	Order                       Order                              `gorm:"foreignKey:OrderID" json:"order"`
 	Name                        string                             `gorm:"type:varchar(255);not null" json:"name"`
 	MoyskladID                  string                             `gorm:"type:varchar(255);not null" json:"moysklad_id"`
-	ModificationCharacteristics []ModificationCharacteristicsOrder `gorm:"foreignKey:OrderItemID;constraint:OnDelete:CASCADE;" json:"modification_characteristics"`
+	ModificationCharacteristic []ModificationCharacteristicOrder `gorm:"foreignKey:OrderItemID;constraint:OnDelete:CASCADE;" json:"modification_characteristics"`
 	Quantity                    uint                               `gorm:"not null" json:"quantity"`
 	Price                       float64                            `gorm:"type:decimal(10,2);not null" json:"price"`
 }
 
 // ModificationCharacteristicsOrder represents the modification characteristics for an order item
-type ModificationCharacteristicsOrder struct {
+type ModificationCharacteristicOrder struct {
 	gorm.Model
 	OrderItemID uint   `gorm:"not null" json:"order_item_id"`
 	ModID       string `gorm:"type:varchar(191);not null"`
 	Name        string `gorm:"type:varchar(128);not null" json:"name"`
 	Value       string `gorm:"type:varchar(128);not null" json:"value"`
 }
-
-// OrderItem represents the order item model
-// type OrderItem struct {
-// 	gorm.Model
-// 	OrderID                     uint                               `gorm:"not null" json:"order_id"`
-// 	Order                       Order                              `gorm:"foreignKey:OrderID" json:"order"`
-// 	Name                        string                             `gorm:"type:varchar(255);not null" json:"name"`
-// 	MoyskladID                  string                             `gorm:"type:varchar(255);not null" json:"moysklad_id"`
-// 	ModificationCharacteristics []ModificationCharacteristicsOrder `gorm:"foreignKey:MoyskladID;references:MoyskladID;constraint:OnDelete:CASCADE;"`
-// 	Quantity                    uint                               `gorm:"not null" json:"quantity"`
-// 	Price                       float64                            `gorm:"type:decimal(10,2);not null" json:"price"`
-// }
-//
-// type ModificationCharacteristicsOrder struct {
-// 	gorm.Model
-// 	ModID string `gorm:"type:varchar(191);not null"`
-// 	Name  string `gorm:"type:varchar(128);not null"`
-// 	Value string `gorm:"type:varchar(128);not null"`
-// }

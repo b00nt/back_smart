@@ -1,3 +1,4 @@
+// routes/products_routes.go
 package routes
 
 import (
