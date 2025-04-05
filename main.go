@@ -1,25 +1,26 @@
 package main
 
 import (
-	"back/internal/database"
-	"back/internal/handlers"
-	"back/internal/models"
-	// "back/internal/moysklad"
-	"back/internal/routes"
-	"back/internal/services"
 	"context"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"github.com/joho/godotenv"
-	"gorm.io/gorm"
-	"gorm.io/driver/postgres"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-	"log"
+
+	// "back/internal/handlers"
+	"back/internal/models"
+	"back/internal/moysklad"
+	// "back/internal/routes"
+	// "back/internal/services"
+
+	"github.com/joho/godotenv"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -39,34 +40,43 @@ func main() {
 	e.Static("/static", "static")
 
 	// Database connection
-	db, err := database.Connect()
+	db, err := Connect()
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("DB connection error: %s", err)
 		os.Exit(1)
 	}
 
-	db.AutoMigrate(&models.Category{})
-	db.AutoMigrate(&models.Products{}, &models.Modification{}, &models.ModificationImages{}, &models.ProductImages{}, &models.ModificationCharacteristics{})
-	db.AutoMigrate(&models.ProductsSaratov{}, &models.ModificationSaratov{}, &models.ModificationImagesSaratov{}, &models.ProductImagesSaratov{}, &models.ModificationCharacteristicsSaratov{})
-	db.AutoMigrate(&models.Feedback{}, &models.OrderItem{}, &models.CustomerInfo{}, &models.Order{}, &models.ModificationCharacteristicsOrder{})
+	db.AutoMigrate(&models.Product{}, &models.Modification{}, &models.ModificationImage{}, &models.ProductImage{}, &models.ModificationCharacteristic{})
+	db.AutoMigrate(&models.Feedback{}, &models.OrderItem{}, &models.CustomerInfo{}, &models.Order{}, &models.ModificationCharacteristicOrder{})
+
+	// setup routes
+	// routes.SetupRoutes(e, db)
 
 	// Initialize the CronService
-	cronService := services.NewCronService()
-	fmt.Println(cronService)
+	// cronService := services.NewCronService()
+	// fmt.Println(cronService)
+
+	// err := SaveProducts(hui)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
 
 	// Start the cron job
 	// cronService.Start("saratov", db)
 	// cronService.Start("moscow", db)
 
-	// get & save products 
-	// resultSaratovProduct := moysklad.GetProducts("saratov")
-	// err = moysklad.SaveProducts("saratov", resultSaratovProduct, db)
-	// if err != nil {
-	// 	log.Errorf("Error updating product:", err)
-	// } else {
-	// 	fmt.Println("Product update successful")
-	// }
-	//
+	// get & save products
+	resultSaratovProduct, err := moysklad.GetProducts("saratov")
+	if err != nil {
+		log.Printf("Error get product: %s", err)
+	}
+
+	fmt.Println(resultSaratovProduct)
+
+	err = moysklad.SaveProducts("saratov", resultSaratovProduct, db)
+	if err != nil {
+		fmt.Errorf("Error updating product:", err)
+	}
 	// resultMoscowProduct := moysklad.GetProducts("moscow")
 	// err = moysklad.SaveProducts("moscow", resultMoscowProduct, db)
 	// if errMoscowProduct != nil {
@@ -112,13 +122,6 @@ func main() {
 	// moysklad.GetSaveDownloadProductImages("saratov", db)
 	// moysklad.GetSaveDownloadModImages("saratov", db)
 
-
-	// Initialize handler with DB instance
-	handler := handlers.NewHandler(db)
-	routes.InitProductsRoutes(e, handler)
-	routes.InitFeedbackRoutes(e, handler)
-	routes.InitOrderRoutes(e, handler)
-
 	// Channel to listen for interrupt or terminate signals
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -132,7 +135,7 @@ func main() {
 
 	// Wait for an interrupt signal
 	<-quit
-	fmt.Println("Shutting down server...")
+	log.Println("Shutting down server...")
 
 	// Create a deadline to wait for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -145,11 +148,12 @@ func main() {
 
 	// Close the database connection
 	sqlDB, err := db.DB()
-	if err == nil {
-		sqlDB.Close()
-		fmt.Println("Database connection closed.")
+	if err != nil {
+		log.Println("Failed to close database connection:", err)
+		os.Exit(1)
 	} else {
-		fmt.Println("Failed to close database connection:", err)
+		sqlDB.Close()
+		log.Println("Database connection closed.")
 	}
 }
 

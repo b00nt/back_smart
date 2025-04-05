@@ -27,4 +27,5 @@ go.work.sum
 # Hardcored
 static/
 static/*
-internal/moysklad/moysklad.go
+test/*
+*.txt

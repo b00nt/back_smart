@@ -2,16 +2,24 @@
 package routes
 
 import (
+	"back/internal/handlers"
+
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 )
 
-func InitializeRoutes(e *echo.Echo, db *gorm.DB) {
-	// Pass the database instance to the context using middleware
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Set("tom_db", db)
-			return next(c)
-		}
-	})
+func SetupRoutes(e *echo.Echo, db *gorm.DB) {
+	h := handlers.NewAuthHandler(db)
+
+	e.POST("/feedback", h.Feedback)
+	e.POST("/api/create-order", h.CreateOrder)
+
+	// Define a group for productsroutes
+	productsGroup := e.Group("/api/products")
+
+	// Products routes
+	productsGroup.GET("/:categoryID", h.GetProductsByCategory)
+	productsGroup.GET("", h.GetProducts)
+	productsGroup.GET("/product/:moysklad_id", h.GetProductByID)
+
 }
