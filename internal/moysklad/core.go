@@ -36,11 +36,11 @@ func GetToken(city string) (http.Header, error) {
 	return headers, nil
 }
 
-func GetEssence(headers http.Header, endpoint string) ([]interface{}, error) {
+func GetEssence(headers http.Header, endpoint string) ([]interface{}, int, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	// Set headers
@@ -53,7 +53,7 @@ func GetEssence(headers http.Header, endpoint string) ([]interface{}, error) {
 	// Make the request
 	response, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer response.Body.Close()
 
@@ -62,26 +62,30 @@ func GetEssence(headers http.Header, endpoint string) ([]interface{}, error) {
 		var result map[string]interface{}
 		body, err := io.ReadAll(response.Body)
 		if err != nil {
-			return nil, fmt.Errorf("io.ReadAll got: %s", err)
+			return nil, 0, fmt.Errorf("io.ReadAll got: %s", err)
 		}
 
 		if err := json.Unmarshal(body, &result); err != nil {
-			return nil, fmt.Errorf("Unmarshal JSON got: %s", err)
+			return nil, 0, fmt.Errorf("Unmarshal JSON got: %s", err)
 		}
 
 		if rows, ok := result["rows"]; ok {
-			// rowsData, err := json.MarshalIndent(rows, "", "  ")
-			// if err != nil {
-			// 	return nil, err
-			// }
-			// fmt.Println("Rows data:", string(rowsData))
-			return rows.([]interface{}), nil
+			// Extract metadata for pagination
+			totalCount := 0
+			if meta, ok := result["meta"].(map[string]interface{}); ok {
+				if size, ok := meta["size"].(float64); ok {
+					totalCount = int(size)
+				}
+			}
+			return rows.([]interface{}), totalCount, nil
 		}
-		return nil, fmt.Errorf("no rows found in response")
-	} else {
-		body, _ := io.ReadAll(response.Body)
-		return nil, fmt.Errorf("failed to fetch products. Status code: %d, Message: %s", response.StatusCode, string(body))
-	}
+
+		return nil, 0, fmt.Errorf("no rows found in response")
+
+		} else {
+			body, _ := io.ReadAll(response.Body)
+			return nil, 0, fmt.Errorf("failed to fetch products. Status code: %d, Message: %s", response.StatusCode, string(body))
+		}
 }
 
 // Helper function to extract MoyskladID from the product URL

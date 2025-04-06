@@ -4,194 +4,172 @@ package moysklad
 
 import (
 	"fmt"
-	"time"
+	"strings"
 
 	"back/internal/models"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	// "gorm.io/gorm/clause"
 )
 
-func GetModifications(city string, db *gorm.DB) []interface{} {
-	headers := GetToken(city)
-	moyskladId := GetMoyskladID(city, db)
+func GetModifications(city string, db *gorm.DB) ([]interface{}, error) {
+	var allModifications []interface{}
+	baseEndpoint := "https://api.moysklad.ru/api/remap/1.2/entity/variant"
+	headers, err := GetToken(city)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get token: %w", err)
+	}
 
-	// Create a ticker that ticks every 66.67 milliseconds (3000ms / 45 requests)
-	ticker := time.NewTicker(66 * time.Millisecond)
-	defer ticker.Stop()
-
-	for _, v := range moyskladId {
-		// Wait for the next tick before making a request
-		<-ticker.C
-
-		endpoint := fmt.Sprintf("https://api.moysklad.ru/api/remap/1.2/entity/variant?filter=productid=%s", v)
-		result, err := GetEssence(headers, endpoint)
+	offset := 0
+	limit := 1000 // Maximum limit for Moysklad API
+	
+	for {
+		// Add pagination parameters to the endpoint
+		paginatedEndpoint := fmt.Sprintf("%s?limit=%d&offset=%d", baseEndpoint, limit, offset)
+		
+		// Get the current page of results
+		results, totalCount, err := GetEssence(headers, paginatedEndpoint)
 		if err != nil {
-			fmt.Println(err)
-			return nil
-		} else {
-			if err != SaveModifications(city, result, db) {
-				fmt.Println(err)
-			}
+			return nil, fmt.Errorf("failed to get variants at offset %d: %w", offset, err)
+		}
+		
+		// Add results to our collection
+		allModifications = append(allModifications, results...)
+		
+		// Update offset for next iteration
+		offset += len(results)
+		
+		// Check if we've retrieved all items
+		if offset >= totalCount || len(results) == 0 {
+			break
 		}
 	}
-	return nil
+	
+	return allModifications, nil
 }
 
-func SaveModifications(city string, mods []interface{}, db *gorm.DB) error {
-	for _, mod := range mods {
-		modMap, ok := mod.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("modification data format invalid")
-		}
-
-		//		fmt.Println(modMap)
-
-		// Extract ModID, Code, SalePrices, Image URL
-		modID, ok := modMap["id"].(string)
-		if !ok {
-			return fmt.Errorf("modification ID not found or invalid")
-		}
-		name, _ := modMap["name"].(string)
-		code, _ := modMap["code"].(string)
-		//imageURL, _ := modMap["images"].(string) // adjust parsing if necessary
-		var salePrice float64
-		if prices, ok := modMap["salePrices"].([]interface{}); ok && len(prices) > 0 {
-			if firstPrice, ok := prices[0].(map[string]interface{}); ok {
-				salePrice, _ = firstPrice["value"].(float64)
-			}
-		}
-
-		// Extract MoyskladID from product's href URL
-		var moyskladID string
-		if productInfo, ok := modMap["product"].(map[string]interface{}); ok {
-			if meta, ok := productInfo["meta"].(map[string]interface{}); ok {
-				if href, ok := meta["href"].(string); ok {
-					moyskladID = extractMoyskladIDFromURL(href)
-				}
-			}
-		}
-
-		if city == "moscow" {
-			// Prepare the modification record to insert or update
-			modification := models.Modification{
-				Name:       name,
-				ModID:      modID,
-				MoyskladID: moyskladID,
-				Code:       code,
-				//Images:      imageURL,
-				SalePrices: salePrice / 100,
-			}
-
-			// Use Upsert to insert or update the modification
-			if err := db.Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "mod_id"}}, // Specify the unique column
-				DoUpdates: clause.Assignments(map[string]interface{}{
-					"updated_at":  gorm.Expr("CURRENT_TIMESTAMP"), // Update the timestamp
-					"moysklad_id": modification.MoyskladID,
-					"code":        modification.Code,
-					"sale_prices": modification.SalePrices,
-				}),
-			}).Create(&modification).Error; err != nil {
-				return fmt.Errorf("failed to save modification: %v", err)
-			} else {
-				fmt.Printf("Modification %s is done\n", modID)
-			}
-
-			// Collect characteristics for batch insertion
-			var modChars []models.ModificationCharacteristics
-			var nameChars string
-			if characteristics, ok := modMap["characteristics"].([]interface{}); ok {
-				for _, char := range characteristics {
-					charMap, ok := char.(map[string]interface{})
-					if !ok {
-						return fmt.Errorf("characteristic format invalid")
-					}
-
-					nameChars, _ := charMap["name"].(string)
-					value, _ := charMap["value"].(string)
-
-					// Append each characteristic to the slice
-					modChars = append(modChars, models.ModificationCharacteristics{
-						ModID: modification.ModID,
-						Name:  nameChars,
-						Value: value,
-					})
-				}
-			}
-
-			// Batch insert characteristics
-			if len(modChars) > 0 {
-				if err := db.Clauses(clause.OnConflict{
-					DoNothing: true, // Avoid duplicating characteristics if they already exist
-				}).Create(&modChars).Error; err != nil {
-					return fmt.Errorf("failed to batch insert characteristics: %v", err)
-				} else {
-					fmt.Printf("characteristic %s of modification %s is done\n", nameChars, modID)
-				}
-			}
-		} else if city == "saratov" {
-			// Prepare the modification record to insert or update
-			modification := models.ModificationSaratov{
-				Name:       name,
-				ModID:      modID,
-				MoyskladID: moyskladID,
-				Code:       code,
-				//Images:      imageURL,
-				SalePrices: salePrice / 100,
-			}
-
-			// Use Upsert to insert or update the modification
-			if err := db.Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "mod_id"}}, // Specify the unique column
-				DoUpdates: clause.Assignments(map[string]interface{}{
-					"updated_at":  gorm.Expr("CURRENT_TIMESTAMP"), // Update the timestamp
-					"moysklad_id": modification.MoyskladID,
-					"code":        modification.Code,
-					"sale_prices": modification.SalePrices,
-				}),
-			}).Create(&modification).Error; err != nil {
-				return fmt.Errorf("failed to save modification: %v", err)
-			} else {
-				fmt.Printf("Modification %s is done\n", modID)
-			}
-
-			// Collect characteristics for batch insertion
-			var modChars []models.ModificationCharacteristicsSaratov
-			var nameChars string
-			if characteristics, ok := modMap["characteristics"].([]interface{}); ok {
-				// fmt.Println(characteristics...)
-				for _, char := range characteristics {
-					charMap, ok := char.(map[string]interface{})
-					if !ok {
-						return fmt.Errorf("characteristic format invalid")
-					}
-
-					nameChars, _ := charMap["name"].(string)
-					value, _ := charMap["value"].(string)
-
-					// Append each characteristic to the slice
-					modChars = append(modChars, models.ModificationCharacteristicsSaratov{
-						ModID: modification.ModID,
-						Name:  nameChars,
-						Value: value,
-					})
-				}
-			}
-
-			// Batch insert characteristics
-			if len(modChars) > 0 {
-				if err := db.Clauses(clause.OnConflict{
-					Columns:   []clause.Column{{Name: "mod_id"}, {Name: "name"}, {Name: "value"}},
-					DoNothing: true, // Avoid duplicating characteristics if they already exist
-				}).Create(&modChars).Error; err != nil {
-					return fmt.Errorf("failed to batch insert characteristics: %v", err)
-				} else {
-					fmt.Printf("characteristic %s of modification %s is done\n", nameChars, modID)
-				}
-			}
-		}
+func SaveModifications(city string, modifications []interface{}, db *gorm.DB) error {
+	// Begin a transaction
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error
 	}
+	
+	// Defer rollback in case of error
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, modData := range modifications {
+		mod := modData.(map[string]interface{})
+		
+		// Extract the basic modification data
+		modID := mod["id"].(string)
+		name := mod["name"].(string)
+		
+		// Extract code (handle case where it might be missing)
+		var code string
+		if codeVal, ok := mod["code"]; ok && codeVal != nil {
+			code = codeVal.(string)
+		}
+		
+		// Get the product ID
+		var productID string
+		if product, ok := mod["product"].(map[string]interface{}); ok {
+			if productMeta, ok := product["meta"].(map[string]interface{}); ok {
+				if href, ok := productMeta["href"].(string); ok {
+					// Extract product ID from the URL
+					parts := strings.Split(href, "/")
+					if len(parts) > 0 {
+						productID = parts[len(parts)-1]
+					}
+				}
+			}
+		}
+		
+		// Extract the sale price
+		var salePrice float64
+		if salePrices, ok := mod["salePrices"].([]interface{}); ok && len(salePrices) > 0 {
+			if priceData, ok := salePrices[0].(map[string]interface{}); ok {
+				if val, ok := priceData["value"].(float64); ok {
+					salePrice = val
+				}
+			}
+		}
+		
+		// Create or update the modification record
+		modification := models.Modification{
+			Name:       name,
+			ModID:      modID,
+			MoyskladID: productID,
+			Code:       code,
+			SalePrices: salePrice,
+			Display:    true,
+		}
+		
+		result := tx.Where("mod_id = ?", modID).FirstOrCreate(&modification)
+		if result.Error != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to save modification: %w", result.Error)
+		}
+		
+		// Save characteristics
+		if chars, ok := mod["characteristics"].([]interface{}); ok {
+			// First, delete existing characteristics for this modification
+			if err := tx.Where("mod_id = ?", modID).Delete(&models.ModificationCharacteristic{}).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to delete existing characteristics: %w", err)
+			}
+			
+			for _, charData := range chars {
+				char := charData.(map[string]interface{})
+				
+				characteristic := models.ModificationCharacteristic{
+					ModID: modID,
+					Name:  char["name"].(string),
+					Value: char["value"].(string),
+				}
+				
+				if err := tx.Create(&characteristic).Error; err != nil {
+					tx.Rollback()
+					return fmt.Errorf("failed to save characteristic: %w", err)
+				}
+			}
+		}
+		
+		// Handle images if present
+		// if imagesData, ok := mod["images"].(map[string]interface{}); ok {
+		// 	if metaData, ok := imagesData["meta"].(map[string]interface{}); ok {
+		// 		if href, ok := metaData["href"].(string); ok && metaData["size"].(float64) > 0 {
+					// We need to make an additional API call to get the images
+					// This is a placeholder for that call
+					// You would implement this based on your GetEssence function
+					// images, _, err := GetEssence(headers, href)
+					// if err == nil {
+					//     // Save images logic here
+					// }
+				//}
+			//}
+		//}
+	}
+	
+	// Commit the transaction
+	return tx.Commit().Error
+}
+
+func UpdateAllModifications(city string, db *gorm.DB) error {
+	modifications, err := GetModifications(city, db)
+	if err != nil {
+		return fmt.Errorf("failed to get modifications: %w", err)
+	}
+	
+	err = SaveModifications(city, modifications, db)
+	if err != nil {
+		return fmt.Errorf("failed to save modifications: %w", err)
+	}
+	
 	return nil
 }
 

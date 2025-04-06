@@ -18,7 +18,7 @@ func GetProducts(city string) ([]interface{}, error) {
 		return nil, fmt.Errorf("failed to get token: %w", err)
 	}
 
-	result, err := GetEssence(headers, endpoint)
+	result, _, err := GetEssence(headers, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get products: %w", err)
 	}

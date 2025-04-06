@@ -56,27 +56,22 @@ func main() {
 	// cronService := services.NewCronService()
 	// fmt.Println(cronService)
 
-	// err := SaveProducts(hui)
-	// if err != nil {
-	// 	log.Println(err)
-	// }
-
 	// Start the cron job
 	// cronService.Start("saratov", db)
 	// cronService.Start("moscow", db)
 
 	// get & save products
-	resultSaratovProduct, err := moysklad.GetProducts("saratov")
-	if err != nil {
-		log.Printf("Error get product: %s", err)
-	}
-
-	fmt.Println(resultSaratovProduct)
-
-	err = moysklad.SaveProducts("saratov", resultSaratovProduct, db)
-	if err != nil {
-		fmt.Errorf("Error updating product:", err)
-	}
+	// resultSaratovProduct, err := moysklad.GetProducts("saratov")
+	// if err != nil {
+	// 	log.Printf("Error get product: %s", err)
+	// }
+	//
+	// fmt.Println(resultSaratovProduct)
+	//
+	// err = moysklad.SaveProducts("saratov", resultSaratovProduct, db)
+	// if err != nil {
+	// 	fmt.Errorf("Error updating product:", err)
+	// }
 	// resultMoscowProduct := moysklad.GetProducts("moscow")
 	// err = moysklad.SaveProducts("moscow", resultMoscowProduct, db)
 	// if errMoscowProduct != nil {
@@ -86,21 +81,11 @@ func main() {
 	// }
 
 	// get & save modifications
-	// resultSaratovMod := moysklad.GetModifications("saratov", db)
-	// err = moysklad.SaveModifications("saratov", resultSaratovMod, db)
-	// if err != nil {
-	// 	log.Errorf("Error updating modification:", err)
-	// } else {
-	// 	fmt.Println("Modification update successful")
-	// }
-	//
-	// resultMoscowMod := moysklad.GetModifications("moscow", db)
-	// err = moysklad.SaveModifications("moscow", resultMoscowMod, db)
-	// if err != nil {
-	// 	log.Errorf("Error updating modification:", err)
-	// } else {
-	// 	fmt.Println("Modification update successful")
-	// }
+	err = moysklad.UpdateAllStocks("saratov", db)
+	if err != nil {
+		log.Printf("Error get stocks: %s", err)
+	}
+
 
 	// get & save stock
 	// resultSaratovStock := moysklad.GetStock("saratov")
