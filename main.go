@@ -12,7 +12,7 @@ import (
 
 	// "back/internal/handlers"
 	"back/internal/models"
-	"back/internal/moysklad"
+	// "back/internal/moysklad"
 	// "back/internal/routes"
 	// "back/internal/services"
 
@@ -32,12 +32,16 @@ func main() {
 	}))
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:3000"}, // add domain name here for protect API
+		AllowOrigins: []string{"http://localhost:3000"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.OPTIONS},
 		AllowHeaders: []string{"Content-Type"},
 	}))
 
 	e.Static("/static", "static")
+
+	// set body limit and 20 requests per minute
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
+	e.Use(middleware.BodyLimit("10M"))
 
 	// Database connection
 	db, err := Connect()
@@ -81,11 +85,10 @@ func main() {
 	// }
 
 	// get & save modifications
-	err = moysklad.UpdateAllStocks("saratov", db)
-	if err != nil {
-		log.Printf("Error get stocks: %s", err)
-	}
-
+	// err = moysklad.UpdateAllStocks("saratov", db)
+	// if err != nil {
+	// 	log.Printf("Error get stocks: %s", err)
+	// }
 
 	// get & save stock
 	// resultSaratovStock := moysklad.GetStock("saratov")
