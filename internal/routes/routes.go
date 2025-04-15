@@ -9,17 +9,12 @@ import (
 )
 
 func SetupRoutes(e *echo.Echo, db *gorm.DB) {
-	h := handlers.NewAuthHandler(db)
+	h := handlers.NewHandler(db)
 
-	e.POST("/feedback", h.Feedback)
-	e.POST("/api/create-order", h.CreateOrder)
+	routesGroup := e.Group("/api")
 
-	// Define a group for productsroutes
-	productsGroup := e.Group("/api/products")
-
-	// Products routes
-	productsGroup.GET("/:categoryID", h.GetProductsByCategory)
-	productsGroup.GET("", h.GetProducts)
-	productsGroup.GET("/product/:moysklad_id", h.GetProductByID)
+	routesGroup.POST("/feedback", h.Feedback)
+	routesGroup.POST("/create-order", h.CreateOrder)
+	routesGroup.GET("/products/:categoryID", h.GetProductsByCategory)
 
 }

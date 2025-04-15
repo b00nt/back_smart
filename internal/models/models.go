@@ -104,7 +104,6 @@ type OrderItem struct {
 	Price                      float64                           `gorm:"type:decimal(10,2);not null" json:"price"`
 }
 
-// ModificationCharacteristicsOrder represents the modification characteristics for an order item
 type ModificationCharacteristicOrder struct {
 	gorm.Model
 	OrderItemID uint   `gorm:"not null" json:"order_item_id"`
