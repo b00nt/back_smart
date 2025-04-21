@@ -12,14 +12,9 @@ import (
 	// "gorm.io/gorm/clause"
 )
 
-func GetModifications(city string, db *gorm.DB) ([]interface{}, error) {
+func GetModifications(db *gorm.DB, token, city string) ([]interface{}, error) {
 	var allModifications []interface{}
 	baseEndpoint := "https://api.moysklad.ru/api/remap/1.2/entity/variant"
-	headers, err := GetToken(city)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token: %w", err)
-	}
-
 	offset := 0
 	limit := 1000 // Maximum limit for Moysklad API
 
@@ -28,7 +23,7 @@ func GetModifications(city string, db *gorm.DB) ([]interface{}, error) {
 		paginatedEndpoint := fmt.Sprintf("%s?limit=%d&offset=%d", baseEndpoint, limit, offset)
 
 		// Get the current page of results
-		results, totalCount, err := GetEssence(headers, paginatedEndpoint)
+		results, totalCount, err := GetEssence(token, paginatedEndpoint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get variants at offset %d: %w", offset, err)
 		}
@@ -48,7 +43,7 @@ func GetModifications(city string, db *gorm.DB) ([]interface{}, error) {
 	return allModifications, nil
 }
 
-func SaveModifications(city string, modifications []interface{}, db *gorm.DB) error {
+func SaveModifications(db *gorm.DB, city string, modifications []interface{}) error {
 	// Begin a transaction
 	tx := db.Begin()
 	if tx.Error != nil {
@@ -158,13 +153,13 @@ func SaveModifications(city string, modifications []interface{}, db *gorm.DB) er
 	return tx.Commit().Error
 }
 
-func UpdateAllModifications(city string, db *gorm.DB) error {
-	modifications, err := GetModifications(city, db)
+func UpdateAllModifications(db *gorm.DB, token, city string) error {
+	modifications, err := GetModifications(db, token, city)
 	if err != nil {
 		return fmt.Errorf("failed to get modifications: %w", err)
 	}
 
-	err = SaveModifications(city, modifications, db)
+	err = SaveModifications(db, city, modifications)
 	if err != nil {
 		return fmt.Errorf("failed to save modifications: %w", err)
 	}

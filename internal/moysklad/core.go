@@ -8,17 +8,18 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	// "gorm.io/gorm"
 )
 
-func GetToken(city string) (http.Header, error) {
+// create header for token
+func CreateHeader(city string) (http.Header, error) {
 	var username, password string
 
-	if city == "moscow" {
+	switch city {
+	case "moscow":
 		username = os.Getenv("MOYSKLAD_MOSCOW_USERNAME")
 		password = os.Getenv("MOYSKLAD_MOSCOW_PASSWORD")
-	} else if city == "saratov" {
+	case "saratov":
 		username = os.Getenv("MOYSKLAD_SARATOV_USERNAME")
 		password = os.Getenv("MOYSKLAD_SARATOV_PASSWORD")
 	}
@@ -30,105 +31,123 @@ func GetToken(city string) (http.Header, error) {
 	// Define the headers
 	headers := http.Header{
 		"Authorization": []string{fmt.Sprintf("Basic %s", b64AuthString)},
-		"Content-Type":  []string{"application/json"},
 	}
 
 	return headers, nil
 }
 
-func GetEssence(headers http.Header, endpoint string) ([]interface{}, int, error) {
+// returns token string
+func GetToken(headers http.Header) (string, error) {
+	var tokenResponse struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	endpoint := "https://api.moysklad.ru/api/remap/1.2/security/token"
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", endpoint, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set the headers
+	req.Header = headers
+
+	// Send the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+
+	// Error check for resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			if err == nil {
+				err = closeErr
+			}
+		}
+	}()
+
+	// Check the status code
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("API request failed with status code %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse the response
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return tokenResponse.AccessToken, nil
+}
+
+// limit: 1000
+func GetEssence(token string, endpoint string) ([]interface{}, int, error) {
+	// Define the header
+	headers := http.Header{
+		"Authorization": []string{fmt.Sprintf("Bearer %s", token)},
+	}
+
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set headers
-	for key, values := range headers {
-		for _, value := range values {
-			req.Header.Add(key, value)
-		}
-	}
+	// Set the headers
+	req.Header = headers
 
-	// Make the request
-	response, err := client.Do(req)
+	// Send the request
+	resp, err := client.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer response.Body.Close()
 
-	// Check the response status code
-	if response.StatusCode == http.StatusOK {
-		var result map[string]interface{}
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			return nil, 0, fmt.Errorf("io.ReadAll got: %s", err)
-		}
-
-		if err := json.Unmarshal(body, &result); err != nil {
-			return nil, 0, fmt.Errorf("Unmarshal JSON got: %s", err)
-		}
-
-		if rows, ok := result["rows"]; ok {
-			// Extract metadata for pagination
-			totalCount := 0
-			if meta, ok := result["meta"].(map[string]interface{}); ok {
-				if size, ok := meta["size"].(float64); ok {
-					totalCount = int(size)
-				}
+	// Error check for resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			if err == nil {
+				err = closeErr
 			}
-			return rows.([]interface{}), totalCount, nil
 		}
+	}()
 
-		return nil, 0, fmt.Errorf("no rows found in response")
-
-		} else {
-			body, _ := io.ReadAll(response.Body)
-			return nil, 0, fmt.Errorf("failed to fetch products. Status code: %d, Message: %s", response.StatusCode, string(body))
-		}
-}
-
-// Helper function to extract MoyskladID from the product URL
-func extractMoyskladIDFromURL(href string) string {
-	parts := strings.Split(href, "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
+	// Check the status code
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, 0, fmt.Errorf("API request failed with status code %d: %s", resp.StatusCode, string(body))
 	}
-	return ""
-}
 
-func extractImageURL(href string) string {
-	return extractMoyskladIDFromURL(href)
-}
+	var result map[string]interface{}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, 0, fmt.Errorf("io.ReadAll got: %s", err)
+	}
 
-// func GetMoyskladID(city string, db *gorm.DB) []string {
-// 	var moyskladId []string
-// 	var err error
-//
-// 	if city == "moscow" {
-// 		err = db.Model(&models.Product{}).Pluck("MoyskladID", &moyskladId).Error
-// 	} else if city == "saratov" {
-// 		err = db.Model(&models.ProductsSaratov{}).Pluck("MoyskladID", &moyskladId).Error
-// 	}
-// 	if err != nil {
-// 		fmt.Println("Error fetching moyskladID:", err)
-// 		return []string{}
-// 	}
-// 	return moyskladId
-// }
-//
-// func GetModID(city string, db *gorm.DB) []string {
-// 	var modId []string
-// 	var err error
-//
-// 	if city == "moscow" {
-// 		err = db.Model(&models.Modification{}).Pluck("ModID", &modId).Error
-// 	} else if city == "saratov" {
-// 		err = db.Model(&models.ModificationSaratov{}).Pluck("ModID", &modId).Error
-// 	}
-// 	if err != nil {
-// 		fmt.Println("Error fetching modificationID:", err)
-// 		return []string{}
-// 	}
-// 	return modId
-// }
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, 0, fmt.Errorf("Unmarshal JSON got: %s", err)
+	}
+
+	// Extract meta data for pagination
+	meta, metaOk := result["meta"].(map[string]interface{})
+	totalCount := 0
+	if metaOk {
+		if size, ok := meta["size"].(float64); ok {
+			totalCount = int(size)
+		}
+	}
+
+	rows, ok := result["rows"]
+	if !ok {
+		return nil, totalCount, fmt.Errorf("response doesn't contain 'rows' field")
+	}
+
+	// Type assertion to convert to slice
+	rowsSlice, ok := rows.([]interface{})
+	if !ok {
+		return nil, totalCount, fmt.Errorf("'rows' field is not a slice")
+	}
+
+	return rowsSlice, totalCount, nil
+}

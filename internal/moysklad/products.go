@@ -10,15 +10,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetProducts(city string) ([]interface{}, error) {
+func GetProducts(token, city string) ([]interface{}, error) {
 	endpoint := "https://api.moysklad.ru/api/remap/1.2/entity/product"
 
-	headers, err := GetToken(city)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token: %w", err)
-	}
-
-	result, _, err := GetEssence(headers, endpoint)
+	result, _, err := GetEssence(token, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get products: %w", err)
 	}
@@ -26,7 +21,7 @@ func GetProducts(city string) ([]interface{}, error) {
 	return result, nil
 }
 
-func SaveProducts(city string, goods []interface{}, db *gorm.DB) error {
+func SaveProducts(db *gorm.DB, city string, goods []interface{}) error {
 	if len(goods) == 0 {
 		return nil // Early return if no products
 	}
