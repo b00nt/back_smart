@@ -5,10 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"gorm.io/gorm"
 	"io"
 	"net/http"
 	"os"
-	// "gorm.io/gorm"
 )
 
 // create header for token
@@ -150,4 +150,35 @@ func GetEssence(token string, endpoint string) ([]interface{}, int, error) {
 	}
 
 	return rowsSlice, totalCount, nil
+}
+
+func GetMoyskladID(db *gorm.DB, itemType string) ([]string, error) {
+	var moyskladIDs []string
+	var tableName string
+
+	switch itemType {
+	case "product":
+		tableName = "products"
+	case "modification":
+		tableName = "modifications"
+	default:
+		return nil, fmt.Errorf("invalid item type: %s", itemType)
+	}
+
+	query := fmt.Sprintf("SELECT moysklad_id FROM %s", tableName)
+	rows, err := db.Raw(query).Rows()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s MoyskladIDs: %w", itemType, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan %s MoyskladID: %w", itemType, err)
+		}
+		moyskladIDs = append(moyskladIDs, id)
+	}
+
+	return moyskladIDs, nil
 }
