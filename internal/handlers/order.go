@@ -121,7 +121,7 @@ func (h *Handler) CreateOrder(c echo.Context) error {
 
 		// Create ModificationCharacteristics for this item
 		for _, char := range item.ModificationCharacteristics {
-			modChar := models.ModificationCharacteristicOrder{
+			modChar := models.CharacteristicOrder{
 				OrderItemID: orderItem.ID,
 				ModID:       "", // Note: You might need to get this from somewhere
 				Name:        char.Name,

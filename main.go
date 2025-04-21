@@ -67,13 +67,13 @@ func main() {
 		&models.Product{},
 		&models.Modification{},
 		&models.ModificationImage{},
-		&models.ProductImage{},
-		&models.ModificationCharacteristic{},
+		&models.Image{},
+		&models.Characteristic{},
 		&models.Feedback{},
 		&models.OrderItem{},
 		&models.CustomerInfo{},
 		&models.Order{},
-		&models.ModificationCharacteristicOrder{},
+		&models.CharacteristicOrder{},
 	)
 	if err != nil {
 		log.Fatal("Failed to auto-migrate database:", err)
