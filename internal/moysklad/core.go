@@ -11,32 +11,33 @@ import (
 	"os"
 )
 
-// create header for token
+// wrapper for create header
 func CreateHeader(city string) (http.Header, error) {
-	var username, password string
+	return CreateHeaderWithEnvGetter(city, os.Getenv)
+}
 
+// create header for token
+func CreateHeaderWithEnvGetter(city string, getEnv func(string) string) (http.Header, error) {
+	var username, password string
 	switch city {
 	case "moscow":
-		username = os.Getenv("MOYSKLAD_MOSCOW_USERNAME")
-		password = os.Getenv("MOYSKLAD_MOSCOW_PASSWORD")
+		username = getEnv("MOYSKLAD_MOSCOW_USERNAME")
+		password = getEnv("MOYSKLAD_MOSCOW_PASSWORD")
 	case "saratov":
-		username = os.Getenv("MOYSKLAD_SARATOV_USERNAME")
-		password = os.Getenv("MOYSKLAD_SARATOV_PASSWORD")
+		username = getEnv("MOYSKLAD_SARATOV_USERNAME")
+		password = getEnv("MOYSKLAD_SARATOV_PASSWORD")
 	}
-
 	// Base64 encode the credentials
 	authString := fmt.Sprintf("%s:%s", username, password)
 	b64AuthString := base64.StdEncoding.EncodeToString([]byte(authString))
-
 	// Define the headers
 	headers := http.Header{
 		"Authorization": []string{fmt.Sprintf("Basic %s", b64AuthString)},
 	}
-
 	return headers, nil
 }
 
-// returns token string
+// gets headers and returns token string
 func GetToken(headers http.Header) (string, error) {
 	var tokenResponse struct {
 		AccessToken string `json:"access_token"`
@@ -82,8 +83,9 @@ func GetToken(headers http.Header) (string, error) {
 	return tokenResponse.AccessToken, nil
 }
 
+// returns essense (json)
 // limit: 1000
-func GetEssence(token string, endpoint string) ([]interface{}, int, error) {
+func GetEssence(token string, endpoint string) ([]any, int, error) {
 	// Define the header
 	headers := http.Header{
 		"Authorization": []string{fmt.Sprintf("Bearer %s", token)},
@@ -119,18 +121,18 @@ func GetEssence(token string, endpoint string) ([]interface{}, int, error) {
 		return nil, 0, fmt.Errorf("API request failed with status code %d: %s", resp.StatusCode, string(body))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, 0, fmt.Errorf("io.ReadAll got: %s", err)
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, 0, fmt.Errorf("Unmarshal JSON got: %s", err)
+		return nil, 0, fmt.Errorf("unmarshal JSON got: %s", err)
 	}
 
 	// Extract meta data for pagination
-	meta, metaOk := result["meta"].(map[string]interface{})
+	meta, metaOk := result["meta"].(map[string]any)
 	totalCount := 0
 	if metaOk {
 		if size, ok := meta["size"].(float64); ok {
@@ -144,7 +146,7 @@ func GetEssence(token string, endpoint string) ([]interface{}, int, error) {
 	}
 
 	// Type assertion to convert to slice
-	rowsSlice, ok := rows.([]interface{})
+	rowsSlice, ok := rows.([]any)
 	if !ok {
 		return nil, totalCount, fmt.Errorf("'rows' field is not a slice")
 	}
@@ -152,6 +154,7 @@ func GetEssence(token string, endpoint string) ([]interface{}, int, error) {
 	return rowsSlice, totalCount, nil
 }
 
+// returns moyskladID
 func GetMoyskladID(db *gorm.DB, itemType string) ([]string, error) {
 	var moyskladIDs []string
 	var tableName string
@@ -170,7 +173,15 @@ func GetMoyskladID(db *gorm.DB, itemType string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s MoyskladIDs: %w", itemType, err)
 	}
-	defer rows.Close()
+
+	// Error check for resp.Body.Close()
+	defer func() {
+		closeErr := rows.Close()
+		if closeErr != nil && err == nil {
+			// Only override err if it's nil
+			err = fmt.Errorf("failed to close rows: %w", closeErr)
+		}
+	}()
 
 	for rows.Next() {
 		var id string

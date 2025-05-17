@@ -14,7 +14,7 @@ import (
 	// "back/internal/handlers"
 	"back/internal/configs"
 	"back/internal/models"
-	"back/internal/moysklad"
+	// "back/internal/moysklad"
 	"back/internal/routes"
 	// "back/internal/services"
 
@@ -27,7 +27,7 @@ import (
 func main() {
 	e := echo.New()
 
-	// Middleware configuration
+	// middleware configuration
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "method=${method}, uri=${uri}, status=${status}\n",
 	}))
@@ -38,6 +38,7 @@ func main() {
 		AllowHeaders: []string{"Content-Type"},
 	}))
 
+	// static setup
 	e.Static("/static", "static")
 
 	// set body limit and 20 requests per minute
@@ -81,19 +82,6 @@ func main() {
 
 	// Initialize handler with DB instance
 	routes.SetupRoutes(e, db)
-
-	// TEST
-	headers, err := moysklad.CreateHeader("saratov")
-	if err != nil {
-		log.Fatal("failed to create headers: ", err)
-	}
-
-	token, err := moysklad.GetToken(headers)
-	if err != nil {
-		log.Fatal("failed to get token: ", err)
-	}
-
-	fmt.Println(token)
 
 	// Channel to listen for interrupt or terminate signals
 	quit := make(chan os.Signal, 1)

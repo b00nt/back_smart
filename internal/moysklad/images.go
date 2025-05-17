@@ -3,9 +3,9 @@ package moysklad
 import (
 	"back/internal/models"
 	"fmt"
-	"gorm.io/gorm"
+	//"gorm.io/gorm"
 	"io"
-	"log"
+	//"log"
 	"net/http"
 	"os"
 	"strings"
