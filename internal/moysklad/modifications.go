@@ -13,34 +13,35 @@ import (
 )
 
 func GetModifications(db *gorm.DB, token, city string) ([]interface{}, error) {
-	var allModifications []interface{}
-	baseEndpoint := "https://api.moysklad.ru/api/remap/1.2/entity/variant"
-	offset := 0
-	limit := 1000 // Maximum limit for Moysklad API
-
-	for {
-		// Add pagination parameters to the endpoint
-		paginatedEndpoint := fmt.Sprintf("%s?limit=%d&offset=%d", baseEndpoint, limit, offset)
-
-		// Get the current page of results
-		results, totalCount, err := GetEssence(token, paginatedEndpoint)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get variants at offset %d: %w", offset, err)
-		}
-
-		// Add results to our collection
-		allModifications = append(allModifications, results...)
-
-		// Update offset for next iteration
-		offset += len(results)
-
-		// Check if we've retrieved all items
-		if offset >= totalCount || len(results) == 0 {
-			break
-		}
-	}
-
-	return allModifications, nil
+	// var allModifications []interface{}
+	// baseEndpoint := "https://api.moysklad.ru/api/remap/1.2/entity/variant"
+	// offset := 0
+	// limit := 1000 // Maximum limit for Moysklad API
+	//
+	// for {
+	// 	// Add pagination parameters to the endpoint
+	// 	paginatedEndpoint := fmt.Sprintf("%s?limit=%d&offset=%d", baseEndpoint, limit, offset)
+	//
+	// 	// Get the current page of results
+	// 	results, totalCount, err := GetEssence(token, paginatedEndpoint)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to get variants at offset %d: %w", offset, err)
+	// 	}
+	//
+	// 	// Add results to our collection
+	// 	allModifications = append(allModifications, results...)
+	//
+	// 	// Update offset for next iteration
+	// 	offset += len(results)
+	//
+	// 	// Check if we've retrieved all items
+	// 	if offset >= totalCount || len(results) == 0 {
+	// 		break
+	// 	}
+	// }
+	//
+	// return allModifications, nil
+	return nil, nil
 }
 
 func SaveModifications(db *gorm.DB, city string, modifications []interface{}) error {

@@ -85,33 +85,34 @@ func GetToken(headers http.Header) (string, error) {
 
 // returns essense (json)
 // limit: 1000
-func GetEssence(token string, endpoint string) ([]any, int, error) {
+func GetEssence(token string, endpoint string, offset int, limit int) ([]any, int, error) {
 	// Define the header
 	headers := http.Header{
 		"Authorization": []string{fmt.Sprintf("Bearer %s", token)},
 	}
 
+	// Add pagination parameters to the endpoint URL
+	endpointWithParams := fmt.Sprintf("%s?offset=%d&limit=%d", endpoint, offset, limit)
+
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequest("GET", endpointWithParams, nil)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
-
 	// Set the headers
 	req.Header = headers
-
 	// Send the request
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to send request: %w", err)
 	}
 
-	// Error check for resp.Body.Close()
+	// Named return value to handle error in defer
+	var closeErr error
 	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			if err == nil {
-				err = closeErr
-			}
+		closeErr = resp.Body.Close()
+		if closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close response body: %w", closeErr)
 		}
 	}()
 
@@ -126,7 +127,6 @@ func GetEssence(token string, endpoint string) ([]any, int, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("io.ReadAll got: %s", err)
 	}
-
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, 0, fmt.Errorf("unmarshal JSON got: %s", err)
 	}

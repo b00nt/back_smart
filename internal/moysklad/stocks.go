@@ -10,36 +10,37 @@ import (
 )
 
 func GetStocks(db *gorm.DB, token, city string) ([]interface{}, error) {
-	var productStock []interface{}
-	baseEndpoint := "https://api.moysklad.ru/api/remap/1.2/report/stock/all"
-
-	offset := 0
-	limit := 1000 // Maximum limit for Moysklad API
-	groupBy := "variant"
-
-	for {
-		// Add pagination parameters to the endpoint
-		paginatedEndpoint := fmt.Sprintf("%s?limit=%d&offset=%d&groupBy=%s", baseEndpoint, limit, offset, groupBy)
-
-		// Get the current page of results
-		results, totalCount, err := GetEssence(token, paginatedEndpoint)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get stocks at offset %d: %w", offset, err)
-		}
-
-		// Add results to our collection
-		productStock = append(productStock, results...)
-
-		// Update offset for next iteration
-		offset += len(results)
-
-		// Check if we've retrieved all items
-		if offset >= totalCount || len(results) == 0 {
-			break
-		}
-	}
-
-	return productStock, nil
+	// var productStock []interface{}
+	// baseEndpoint := "https://api.moysklad.ru/api/remap/1.2/report/stock/all"
+	//
+	// offset := 0
+	// limit := 1000 // Maximum limit for Moysklad API
+	// groupBy := "variant"
+	//
+	//	for {
+	//		// Add pagination parameters to the endpoint
+	//		paginatedEndpoint := fmt.Sprintf("%s?limit=%d&offset=%d&groupBy=%s", baseEndpoint, limit, offset, groupBy)
+	//
+	//		// Get the current page of results
+	//		results, totalCount, err := GetEssence(token, paginatedEndpoint)
+	//		if err != nil {
+	//			return nil, fmt.Errorf("failed to get stocks at offset %d: %w", offset, err)
+	//		}
+	//
+	//		// Add results to our collection
+	//		productStock = append(productStock, results...)
+	//
+	//		// Update offset for next iteration
+	//		offset += len(results)
+	//
+	//		// Check if we've retrieved all items
+	//		if offset >= totalCount || len(results) == 0 {
+	//			break
+	//		}
+	//	}
+	//
+	// return productStock, nil
+	return nil, nil
 }
 
 func SaveStocks(db *gorm.DB, city string, stocksData []interface{}) error {

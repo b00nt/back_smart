@@ -10,18 +10,40 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetProducts(token, city string) ([]interface{}, error) {
+func GetProducts(token, city string) ([]any, error) {
 	endpoint := "https://api.moysklad.ru/api/remap/1.2/entity/product"
 
-	result, _, err := GetEssence(token, endpoint)
+	// Initial request to get the first page and total count
+	const limit = 1000
+	offset := 0
+
+	firstPage, totalCount, err := GetEssence(token, endpoint, offset, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get products: %w", err)
 	}
 
-	return result, nil
+	// If total count is less than or equal to limit, return the results
+	if totalCount <= limit {
+		return firstPage, nil
+	}
+
+	// Otherwise, we need to make additional requests to get all products
+	allProducts := make([]any, 0, totalCount)
+	allProducts = append(allProducts, firstPage...)
+
+	// Make additional requests until we get all products
+	for offset += limit; offset < totalCount; offset += limit {
+		pageProducts, _, err := GetEssence(token, endpoint, offset, limit)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get products at offset %d: %w", offset, err)
+		}
+		allProducts = append(allProducts, pageProducts...)
+	}
+
+	return allProducts, nil
 }
 
-func SaveProducts(db *gorm.DB, city string, goods []interface{}) error {
+func SaveProducts(db *gorm.DB, city string, goods []any) error {
 	if len(goods) == 0 {
 		return nil // Early return if no products
 	}

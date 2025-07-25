@@ -14,8 +14,12 @@ import (
 func GetProductImages(token string, moyskladID string) ([]models.Image, error) {
 	endpoint := fmt.Sprintf("https://api.moysklad.ru/api/remap/1.2/entity/product/%s/images", moyskladID)
 
+	// Initial request to get the first page and total count
+	const limit = 1000
+	offset := 0
+
 	// Get image metadata from API
-	imageData, _, err := GetEssence(token, endpoint)
+	imageData, _, err := GetEssence(token, endpoint, offset, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get images for product %s: %w", moyskladID, err)
 	}
