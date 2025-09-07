@@ -1,4 +1,4 @@
-package configs
+package config
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ type Config struct {
 	MoyskladPasswordSaratov string
 }
 
-func LoadConfig() (*Config, error) {
+func Load() (*Config, error) {
 	err := godotenv.Load()
 	if err != nil {
 		return nil, fmt.Errorf("error loading .env file: %w", err)
